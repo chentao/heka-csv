@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/mozilla-services/heka/message"
 	"github.com/mozilla-services/heka/pipeline"
 	"io/ioutil"
 	"path"
@@ -12,6 +11,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type CsvEncoderConfig struct {
@@ -80,7 +80,7 @@ func (en *CsvEncoder) Init(config interface{}) (err error) {
 			return e
 		}
 
-		args := make([]ApiArg)
+		var args []ApiArg
 		for line, i := range fields.Items {
 			arg := ApiArg{}
 
@@ -117,7 +117,7 @@ func (en *CsvEncoder) Init(config interface{}) (err error) {
 	return nil
 }
 
-func (en *CsvEncoder) Encode(pack *PipelinePack) (output []byte, err error) {
+func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err error) {
 	fields := pack.Message.GetFields()
 
 	var bpid, api_name, json_string string
@@ -209,7 +209,8 @@ func mapLogField(arg *ApiArg, value *interface{}) (v string, err error) {
 	case "str":
 		v = mustStr(value)
 	case "int":
-		v = mustInt(value)
+		temp := mustInt(value)
+		v = fmt.Sprintf("%d", temp)
 	case "float":
 		temp := mustFloat(value)
 		v = fmt.Sprintf("%0.10f", temp)
@@ -218,7 +219,7 @@ func mapLogField(arg *ApiArg, value *interface{}) (v string, err error) {
 		t = mustInt(value)
 		if t > 0 {
 			temp := time.Unix(t, 0).Local()
-			v = t.Format("2006-01-02 15:04:05")
+			v = temp.Format("2006-01-02 15:04:05")
 		} else {
 			v = "1970-01-01 00:00:00"
 		}
