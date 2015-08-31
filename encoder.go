@@ -1,58 +1,59 @@
 package csv
 
 import (
+	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"github.com/mozilla-services/heka/message"
 	"github.com/mozilla-services/heka/pipeline"
-	"encoding/xml"
-	"encoding/json"
 	"io/ioutil"
-	"path/filepath"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
 )
 
 type CsvEncoderConfig struct {
-	ApiPath string `toml:"api_path"`
+	ApiPath   string `toml:"api_path"`
 	Delimiter string `toml:"delimiter"`
 }
 
 type CsvEncoder struct {
-	config *CsvEncoderConfig
+	config     *CsvEncoderConfig
 	apiconfigs map[string]ApiConfig
 }
 
 type ApiArg struct {
-	aName string
-	aType string
+	aName  string
+	aType  string
 	aValue string
-	aKey bool
+	aKey   bool
 }
 
 type ApiConfig struct {
-	api string
+	api  string
 	args []ApiArg
 }
 
 // for xml
 type ApiFieldItem struct {
-	Name string `xml:"Name,attr"`
-	Type string `xml:"Type"`
+	Name   string `xml:"Name,attr"`
+	Type   string `xml:"Type"`
 	Dvalue string `xml:"Dvalue"`
-	IsKey bool `xml:"IsKey"`
+	IsKey  bool   `xml:"IsKey"`
 }
 
 type ApiFields struct {
-	XMLNAME xml.Name `xml:"Fields"`
-	Items []ApiFieldItem `xml:"Field"`
+	XMLNAME xml.Name       `xml:"Fields"`
+	Items   []ApiFieldItem `xml:"Field"`
 }
+
 // ---
 
 func (en *CsvEncoder) ConfigStruct() interface{} {
 	return &CsvEncoderConfig{
-		ApiPath: "ApiConfig",
+		ApiPath:   "ApiConfig",
 		Delimiter: "\001",
 	}
 }
@@ -68,7 +69,7 @@ func (en *CsvEncoder) Init(config interface{}) (err error) {
 	en.apiconfigs = make(map[string]ApiConfig)
 	for _, file := range files {
 		base := path.Base(file)
-		api := base[3:len(base) - 4]
+		api := base[3 : len(base)-4]
 
 		b, e := ioutil.ReadFile(file)
 		if e != nil {
@@ -109,7 +110,7 @@ func (en *CsvEncoder) Init(config interface{}) (err error) {
 		}
 
 		en.apiconfigs[api] = ApiConfig{
-			api: api,
+			api:  api,
 			args: args,
 		}
 	}
@@ -235,7 +236,7 @@ func mustStr(value *interface{}) (s string) {
 		} else {
 			return "0"
 		}
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.  Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		v := reflect.ValueOf(*value).Int()
 		return fmt.Sprintf("%d", v)
 	case reflect.Float32, reflect.Float64:
@@ -258,7 +259,7 @@ func mustInt(value *interface{}) (i int64) {
 		} else {
 			return 0
 		}
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.  Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return reflect.ValueOf(*value).Int()
 	case reflect.Float32, reflect.Float64:
 		v := reflect.ValueOf(*value).Float()
@@ -288,7 +289,7 @@ func mustFloat(value *interface{}) (f float64) {
 		} else {
 			return 0
 		}
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.  Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		v := reflect.ValueOf(*value).Int()
 		return float64(v)
 	case reflect.Float32, reflect.Float64:
