@@ -151,7 +151,7 @@ func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err er
 		}
 
 		if value := jdata[arg.aName]; value != nil {
-			if v, err := mapLogField(&arg, &value); err != nil {
+			if v, e := mapLogField(&arg, &value); e == nil {
 				csv_arr = append(csv_arr, v)
 				continue
 			}
@@ -225,7 +225,7 @@ func mapLogField(arg *ApiArg, value *interface{}) (v string, err error) {
 		}
 	}
 
-	return
+	return v, nil
 }
 
 func mustStr(value *interface{}) (s string) {
