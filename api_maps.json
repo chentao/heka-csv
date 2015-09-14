@@ -1,0 +1,43 @@
+{
+    "api_ts_map": {
+        "user_signup": "signup_at",
+        "role_created": "create_at",
+        "bycoin_in": "in_at",
+        "bycoin_out": "out_at",
+        "feed_clicked": "click_at",
+        "feed_send": "feed_at",
+        "gamecoin_in": "in_at",
+        "gamecoin_out": "out_at",
+        "goods_in": "in_at",
+        "goods_out": "out_at",
+        "mission_quit": "quit_at",
+        "mission_spark": "spark_at",
+        "point_in": "in_at",
+        "point_out": "out_at",
+        "user_async": "sync_at",
+        "user_bankrupt": "rupt_at",
+        "user_grade": "grade_at",
+        "user_login": "login_at",
+        "user_logout": "logout_at",
+        "user_order": "order_at",
+        "userlogin": "login_id",
+        "user_vip": "vip_at",
+        "user_generate_order": "order_at",
+        "by_event": "lts_at",
+        "pb_gamecoins_stream": "lts_at",
+        "pb_currencies_stream": "lts_at",
+        "pay_order_info": "pstarttime"
+    },
+    "api_ip_location_map": {
+        "user_login": "ip",
+        "user_signup": "ip",
+        "pay_order_info": "ip"
+    },
+    "api_phone_location_map": {
+        "user_ids": {
+            "where": "type",
+            "equal_to": "phone",
+            "transform": "id"
+        }
+    }
+}
