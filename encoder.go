@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/mozilla-services/heka/pipeline"
 	"io/ioutil"
+	"net/http"
+	"errors"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -15,11 +17,12 @@ import (
 )
 
 type CsvEncoderConfig struct {
-	ApiPath        string `toml:"api_path"`
-	Delimiter      string `toml:"delimiter"`
-	PrefixWithDate bool   `toml:"prefix_with_date"`
-	PrefixWithApi  bool   `toml:"prefix_with_apiname"`
-	ApiMapsFile    string `toml:"api_maps_file"`
+	ApiPath         string `toml:"api_path"`
+	Delimiter       string `toml:"delimiter"`
+	PrefixWithDate  bool   `toml:"prefix_with_date"`
+	PrefixWithApi   bool   `toml:"prefix_with_apiname"`
+	ApiMapsFile     string `toml:"api_maps_file"`
+	LocationSvrAddr string `toml:"location_svr_addr"`
 }
 
 type CsvEncoder struct {
@@ -194,6 +197,11 @@ func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err er
 		return nil, fmt.Errorf("No ApiConfig: %s", api_name)
 	}
 
+	jdata, err = en.jsonAddLocationInfo(jdata, api_name)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	var csv_arr []string
 	if en.config.PrefixWithDate {
 		csv_arr = append(csv_arr, log_date)
@@ -231,6 +239,62 @@ func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err er
 	}
 	line := strings.Join(csv_arr, en.config.Delimiter)
 	return []byte(line), nil
+}
+
+func (en *CsvEncoder) jsonAddLocationInfo(jmap map[string]interface{}, api string) (map[string]interface{}, error) {
+	if len(en.config.LocationSvrAddr) == 0 {
+		return jmap, nil
+	}
+
+	if ip_key, ok := en.api_ip_location_map[api]; ok {
+		if ip_value, ok := jmap[ip_key]; ok {
+			switch ip := ip_value.(type) {
+			case string:
+				ipinfo, err := queryLocationInfo(en.config.LocationSvrAddr, "ip", ip)
+				if err == nil { /* Query OK */
+					jmap["x_country"] = ipinfo["country"].(string)
+					jmap["x_province"] = ipinfo["province"].(string)
+					jmap["x_city"] = ipinfo["city"].(string)
+					jmap["x_country_code"] = ipinfo["country_code"].(string)
+
+					return jmap, nil
+				} else {
+					return jmap, fmt.Errorf("queryLocationInfo fail: %v", err)
+				}
+			default:
+			}
+		}
+	}
+
+	if key_info, ok := en.api_phone_location_map[api]; ok {
+		if where, ok := key_info["where"]; ok {
+			if equal_to, ok := key_info["equal_to"]; ok {
+				if where_value, ok := jmap[where]; ok {
+					switch value := where_value.(type) {
+					case string:
+						if value == equal_to {
+							if transform, ok := key_info["transform"]; ok {
+								phone_info, err := queryLocationInfo(en.config.LocationSvrAddr, "phone", jmap[transform].(string))
+								if err == nil {
+									jmap["x_country"] = phone_info["country"].(string)
+									jmap["x_province"] = phone_info["province"].(string)
+									jmap["x_city"] = phone_info["city"].(string)
+									jmap["x_country_code"] = phone_info["country_code"].(string)
+
+									return jmap, nil
+								} else {
+									return jmap, fmt.Errorf("queryLocationInfo fail: %v", err)
+								}
+							}
+						}
+					default:
+					}
+				}
+			}
+		}
+	}
+
+	return jmap, nil
 }
 
 func (en *CsvEncoder) getLogAt(jdata map[string]interface{}, api string) (log_at int64) {
@@ -406,4 +470,36 @@ func mustFloat(value *interface{}) (f float64) {
 		return 0
 	}
 	return 0
+}
+
+func queryLocationInfo(addr string, query string, target string) (map[string]interface{}, error) {
+	url := "http://" + addr + "/location/" + query + "=" + target
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var obj map[string]interface{}
+	err = json.Unmarshal(body, &obj)
+	if err != nil {
+		return nil, err
+	}
+
+	switch c := obj["code"].(type) {
+	case float64:
+		if c != 0 {
+			return nil, fmt.Errorf("code not 0: %s: %s", obj["message"].(string), target)
+		}
+		return obj, nil
+	default:
+		return nil, errors.New("code type unknown")
+	}
+
+	return nil, errors.New("query location info fail")
 }
