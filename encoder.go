@@ -231,6 +231,8 @@ func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err er
 				csv_arr = append(csv_arr, "0")
 			case "datetime":
 				csv_arr = append(csv_arr, "1970-01-01 00:00:00")
+			case "datetime_float":
+				csv_arr = append(csv_arr, "1970-01-01 00:00:00.000")
 			case "str":
 				csv_arr = append(csv_arr, "")
 			default:
@@ -348,7 +350,7 @@ func init() {
 
 func typeOK(t string) bool {
 	switch t {
-	case "str", "int", "float", "datetime":
+	case "str", "int", "float", "datetime", "datetime_float":
 		return true
 	default:
 		return false
@@ -359,7 +361,7 @@ func typeDefaultValue(t string) string {
 	switch t {
 	case "str":
 		return ""
-	case "int", "float", "datetime":
+	case "int", "float", "datetime", "datetime_float":
 		return "0"
 	default:
 		return ""
@@ -386,6 +388,15 @@ func mapLogField(arg *ApiArg, value *interface{}) (v string, err error) {
 			v = temp.Format("2006-01-02 15:04:05")
 		} else {
 			v = "1970-01-01 00:00:00"
+		}
+	case "datetime_float":
+		var f float64
+		f = mustFloat(value)
+		if f > 0 {
+			t := time.Unix(0, int64(f * float64(time.Second))).Local()
+			v = t.Format("2006-01-02 15:04:05.000")
+		} else {
+			v = "1970-01-01 00:00:00.000"
 		}
 	}
 
