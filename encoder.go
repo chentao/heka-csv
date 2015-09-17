@@ -197,9 +197,10 @@ func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err er
 		return nil, fmt.Errorf("No ApiConfig: %s", api_name)
 	}
 
-	jdata, err = en.jsonAddLocationInfo(jdata, api_name)
-	if err != nil {
-		fmt.Println(err)
+	var e error
+	jdata, e = en.jsonAddLocationInfo(jdata, api_name)
+	if e != nil {
+		fmt.Println(e)
 	}
 
 	var csv_arr []string
@@ -238,7 +239,7 @@ func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err er
 		}
 	}
 	line := strings.Join(csv_arr, en.config.Delimiter)
-	return []byte(line), nil
+	return []byte(line + "\n"), nil
 }
 
 func (en *CsvEncoder) jsonAddLocationInfo(jmap map[string]interface{}, api string) (map[string]interface{}, error) {
