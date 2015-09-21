@@ -3,11 +3,11 @@ package csv
 import (
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"github.com/mozilla-services/heka/pipeline"
 	"io/ioutil"
 	"net/http"
-	"errors"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -186,7 +186,7 @@ func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err er
 	jdata := make(map[string]interface{})
 	err = json.Unmarshal([]byte(json_string), &jdata)
 	if err != nil {
-		return
+		return nil, fmt.Errorf("%v: %s", err, json_string)
 	}
 
 	log_at = en.getLogAt(jdata, api_name)
@@ -393,7 +393,7 @@ func mapLogField(arg *ApiArg, value *interface{}) (v string, err error) {
 		var f float64
 		f = mustFloat(value)
 		if f > 0 {
-			t := time.Unix(0, int64(f * float64(time.Second))).Local()
+			t := time.Unix(0, int64(f*float64(time.Second))).Local()
 			v = t.Format("2006-01-02 15:04:05.000")
 		} else {
 			v = "1970-01-01 00:00:00.000"
