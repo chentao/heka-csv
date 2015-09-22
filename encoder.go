@@ -28,7 +28,6 @@ type CsvEncoderConfig struct {
 type CsvEncoder struct {
 	config                 *CsvEncoderConfig
 	apiconfigs             map[string]ApiConfig
-	api_ts_map             map[string]string
 	api_ip_location_map    map[string]string
 	api_phone_location_map map[string]map[string]string
 }
@@ -136,18 +135,11 @@ func (en *CsvEncoder) Init(config interface{}) (err error) {
 	if err != nil {
 		return err
 	}
-	if _, ok := m["api_ts_map"]; !ok {
-		return fmt.Errorf("api_ts_map not set")
-	}
 	if _, ok := m["api_ip_location_map"]; !ok {
 		return fmt.Errorf("api_ip_location_map not set")
 	}
 	if _, ok := m["api_phone_location_map"]; !ok {
 		return fmt.Errorf("api_phone_location_map not set")
-	}
-	en.api_ts_map = make(map[string]string)
-	for k, v := range m["api_ts_map"].(map[string]interface{}) {
-		en.api_ts_map[k] = v.(string)
 	}
 	en.api_ip_location_map = make(map[string]string)
 	for k, v := range m["api_ip_location_map"].(map[string]interface{}) {
@@ -160,7 +152,6 @@ func (en *CsvEncoder) Init(config interface{}) (err error) {
 			en.api_phone_location_map[k][k2] = v2.(string)
 		}
 	}
-	fmt.Println("111:", en.api_ts_map)
 	fmt.Println("222:", en.api_ip_location_map)
 	fmt.Println("333:", en.api_phone_location_map)
 	return nil
@@ -180,6 +171,8 @@ func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err er
 			api_name = f.GetValue().(string)
 		case "JsonString":
 			json_string = f.GetValue().(string)
+		case "LogAt":
+			log_at = f.GetValue().(int64)
 		}
 	}
 
@@ -188,9 +181,6 @@ func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err er
 	if err != nil {
 		return nil, fmt.Errorf("%v: %s", err, json_string)
 	}
-
-	log_at = en.getLogAt(jdata, api_name)
-	log_date = time.Unix(log_at, 0).Format("2006-01-02")
 
 	apiconfig, ok := en.apiconfigs[api_name]
 	if !ok {
@@ -205,6 +195,7 @@ func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err er
 
 	var csv_arr []string
 	if en.config.PrefixWithDate {
+		log_date = time.Unix(log_at, 0).Format("2006-01-02")
 		csv_arr = append(csv_arr, log_date)
 	}
 	if en.config.PrefixWithApi {
@@ -298,48 +289,6 @@ func (en *CsvEncoder) jsonAddLocationInfo(jmap map[string]interface{}, api strin
 	}
 
 	return jmap, nil
-}
-
-func (en *CsvEncoder) getLogAt(jdata map[string]interface{}, api string) (log_at int64) {
-	ts_field := en.getApiTs(api)
-	switch value := jdata[ts_field].(type) {
-	case string:
-		ts_int, err := strconv.Atoi(value)
-		if err != nil || ts_int == 0 {
-			ts_float, err := strconv.ParseFloat(value, 64)
-			if err != nil {
-				log_at = 0
-			} else {
-				log_at = int64(ts_float)
-			}
-		} else {
-			log_at = int64(ts_int)
-		}
-	case int:
-		log_at = int64(value)
-	case float64:
-		log_at = int64(value)
-	case float32:
-		log_at = int64(value)
-	default:
-		log_at = 0
-	}
-	return log_at
-}
-
-func (en *CsvEncoder) getApiTs(api string) (ts_field string) {
-	tapi := strings.TrimSpace(api)
-	ts_field, ok := en.api_ts_map["lts_at"]
-	if ok {
-		return
-	} else {
-		if ts_field, ok = en.api_ts_map[tapi]; ok {
-			return
-		} else {
-			ts_field = "lts_at"
-		}
-	}
-	return
 }
 
 func init() {
