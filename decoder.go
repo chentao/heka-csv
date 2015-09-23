@@ -222,6 +222,7 @@ func (d *CsvDecoder) Decode(pack *PipelinePack) (packs []*PipelinePack, err erro
 			i++
 		}
 	}
+	pack.Recycle()
 	return
 }
 
