@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type CsvDecoderConfig struct {
@@ -137,18 +138,45 @@ func (d *CsvDecoder) Decode(pack *PipelinePack) (packs []*PipelinePack, err erro
 		}
 	}
 
+	if f := pack.Message.FindFirstField("ApiName"); f != nil && event.api_name == "by_event" {
+		f.ValueString[0] = "by_event_args"
+		event.api_name = "by_event_args"
+	}
+
 	jdata := make(map[string]interface{})
 	err = json.Unmarshal([]byte(event.json_string), &jdata)
 	if err != nil {
+		message.NewIntField(pack.Message, "Error", int(MTypeDropJsonError), "")
 		return
 	}
+
 	log_at := d.getLogAt(jdata, event.api_name)
 	message.NewInt64Field(pack.Message, "LogAt", log_at, "")
 
-	if event.api_name != "by_event" {
+	now := time.Now()
+	fyear, fmonth, fday := now.AddDate(0, 0, +2).Date()
+	oyear, omonth, oday := now.AddDate(0, -1, 0).Date()
+	dyear, dmonth, dday := now.AddDate(0, 0, -1).Date()
+	far_at := time.Date(fyear, fmonth, fday, 0, 0, 0, 0, now.Location()).Unix()
+	old_at := time.Date(oyear, omonth, oday, 0, 0, 0, 0, now.Location()).Unix()
+	delay_at := time.Date(dyear, dmonth, dday, 0, 0, 0, 0, now.Location()).Unix()
+
+	if old_at > log_at || log_at > far_at {
+		message.NewIntField(pack.Message, "Error", int(MTypeDropTimeError), "")
+		return nil, fmt.Errorf("time error: log_at: %d", log_at)
+	}
+
+	if event.api_name != "by_event_args" {
+		if log_at < delay_at {
+			message.NewIntField(pack.Message, "Error", int(MTypeDelay), "")
+		} else {
+			message.NewIntField(pack.Message, "Error", int(MTypeOK), "")
+		}
+
 		packs = []*PipelinePack{pack}
 		return packs, nil
 	}
+
 	for key, value := range jdata {
 		switch key {
 		case "uid":
@@ -162,6 +190,16 @@ func (d *CsvDecoder) Decode(pack *PipelinePack) (packs []*PipelinePack, err erro
 		}
 	}
 
+	if len(event.logs) == 0 {
+		message.NewIntField(pack.Message, "Error", int(MTypeDropOtherError), "")
+		return nil, fmt.Errorf("no args in by_event")
+	}
+	if log_at < delay_at {
+		message.NewIntField(pack.Message, "Error", int(MTypeDelay), "")
+	} else {
+		message.NewIntField(pack.Message, "Error", int(MTypeOK), "")
+	}
+
 	rid := event.GetRandId()
 	packs = make([]*PipelinePack, len(event.logs))
 	var i int = 0
@@ -173,16 +211,12 @@ func (d *CsvDecoder) Decode(pack *PipelinePack) (packs []*PipelinePack, err erro
 
 		p := d.runner.NewPack()
 		pack.Message.Copy(p.Message)
-		if f := p.Message.FindFirstField("ApiName"); f != nil {
-			f.ValueString[0] = "by_event_args"
-		}
 		if f := p.Message.FindFirstField("JsonString"); f != nil {
 			jstr, e := json.Marshal(log)
 			if e != nil {
 				fmt.Println(e)
 				continue
 			}
-			fmt.Println("by_event: after:", string(jstr))
 			f.ValueString[0] = string(jstr)
 			packs[i] = p
 			i++
