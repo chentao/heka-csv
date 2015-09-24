@@ -138,6 +138,10 @@ func (d *CsvDecoder) Decode(pack *PipelinePack) (packs []*PipelinePack, err erro
 		}
 	}
 
+	if len(event.bpid) == 0 || len(event.api_name) == 0 || len(event.json_string) == 0 {
+		return nil, fmt.Errorf("format error")
+	}
+
 	if f := pack.Message.FindFirstField("ApiName"); f != nil && event.api_name == "by_event" {
 		f.ValueString[0] = "by_event_args"
 		event.api_name = "by_event_args"
@@ -163,7 +167,7 @@ func (d *CsvDecoder) Decode(pack *PipelinePack) (packs []*PipelinePack, err erro
 
 	if old_at > log_at || log_at > far_at {
 		message.NewIntField(pack.Message, "Error", int(MTypeDropTimeError), "")
-		return nil, fmt.Errorf("time error: log_at: %d", log_at)
+		return nil, fmt.Errorf("time error")
 	}
 
 	if event.api_name != "by_event_args" {

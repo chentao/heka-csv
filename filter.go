@@ -27,11 +27,10 @@ type MetricType int
 const (
 	MTypeOK             MetricType = 0
 	MTypeDelay          MetricType = 1
-	MTypeDropFmtError   MetricType = 2
-	MTypeDropTimeError  MetricType = 3
-	MTypeDropJsonError  MetricType = 4
-	MTypeDropOtherError MetricType = 5
-	MTypeMaxNum         MetricType = 6
+	MTypeDropTimeError  MetricType = 2
+	MTypeDropJsonError  MetricType = 3
+	MTypeDropOtherError MetricType = 4
+	MTypeMaxNum         MetricType = 5
 )
 
 type Key struct {
