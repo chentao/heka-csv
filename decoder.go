@@ -7,6 +7,7 @@ import (
 	. "github.com/mozilla-services/heka/pipeline"
 	"github.com/satori/go.uuid"
 	"io/ioutil"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -73,7 +74,6 @@ func (d *CsvDecoder) Init(config interface{}) error {
 	for k, v := range m["api_ts_map"].(map[string]interface{}) {
 		d.api_ts_map[k] = v.(string)
 	}
-	fmt.Println("111:", d.api_ts_map)
 	return nil
 }
 
@@ -186,7 +186,13 @@ func (d *CsvDecoder) Decode(pack *PipelinePack) (packs []*PipelinePack, err erro
 		case "lts_at":
 			event.lts_at = fmt.Sprintf("%v", value)
 		default:
-			event.logs = append(event.logs, Log{Arg_name: key, Arg_value: fmt.Sprintf("%v", value)})
+			switch reflect.ValueOf(value).Kind() {
+			case reflect.Float64:
+				vstr := strconv.FormatFloat(reflect.ValueOf(value).Float(), 'f', -1, 64)
+				event.logs = append(event.logs, Log{Arg_name: key, Arg_value: vstr})
+			default:
+				event.logs = append(event.logs, Log{Arg_name: key, Arg_value: fmt.Sprintf("%v", value)})
+			}
 		}
 	}
 

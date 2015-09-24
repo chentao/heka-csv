@@ -152,8 +152,6 @@ func (en *CsvEncoder) Init(config interface{}) (err error) {
 			en.api_phone_location_map[k][k2] = v2.(string)
 		}
 	}
-	fmt.Println("222:", en.api_ip_location_map)
-	fmt.Println("333:", en.api_phone_location_map)
 	return nil
 }
 
@@ -190,7 +188,7 @@ func (en *CsvEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err er
 	var e error
 	jdata, e = en.jsonAddLocationInfo(jdata, api_name)
 	if e != nil {
-		fmt.Println(e)
+		pipeline.LogError.Println(e)
 	}
 
 	var csv_arr []string

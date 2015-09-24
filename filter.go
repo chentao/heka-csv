@@ -93,28 +93,20 @@ func (this *BylogFilter) Run(fr FilterRunner, h PluginHelper) (err error) {
 	for pack = range inChan {
 		fields := pack.Message.GetFields()
 
-		var log_at int64
 		var metric_type int64
-		var bpid, api_name, json_string string
+		var bpid, api_name string
 		for _, f := range fields {
 			switch f.GetName() {
 			case "Bpid":
 				bpid = f.GetValue().(string)
 			case "ApiName":
 				api_name = f.GetValue().(string)
-			case "JsonString":
-				json_string = f.GetValue().(string)
-			case "LogAt":
-				log_at = f.GetValue().(int64)
 			case "Error":
 				metric_type = f.GetValue().(int64)
 			}
 		}
 
 		this.doMetric(bpid, api_name, MetricType(metric_type))
-
-		fmt.Println("in filter:", log_at, bpid, api_name, json_string)
-		fmt.Println("Counter:", this.counter.m)
 		pack.Recycle()
 	}
 
