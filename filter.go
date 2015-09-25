@@ -1,6 +1,7 @@
 package csv
 
 import (
+	"encoding/json"
 	"fmt"
 	. "github.com/mozilla-services/heka/pipeline"
 	"os"
@@ -19,7 +20,9 @@ type BylogFilter struct {
 }
 
 type BylogFilterConfig struct {
-	MetricInterval int `toml:"metric_interval"`
+	MetricInterval int    `toml:"metric_interval"`
+	OutputFormat   string `toml:"output_format"`
+	SendNullMetric bool   `toml:"send_null_metric"`
 }
 
 type MetricType int
@@ -52,6 +55,13 @@ func (this *BylogFilter) ConfigStruct() interface{} {
 
 func (this *BylogFilter) Init(config interface{}) error {
 	this.config = config.(*BylogFilterConfig)
+
+	switch this.config.OutputFormat {
+	case "csv", "json":
+		LogInfo.Println("Output format is", this.config.OutputFormat)
+	default:
+		return fmt.Errorf("Output format must be csv or json")
+	}
 
 	this.counter.m = make(map[Key]Value)
 	this.hostname, _ = os.Hostname()
@@ -145,26 +155,60 @@ func (f *BylogFilter) cleanMetricCounter(exiting bool) {
 		if exiting == true {
 			t = time.Now()
 		}
-		var arr []string
-		arr = append(arr, t.Truncate(time.Hour).Format("2006-01-02 15:04:05.999999999"))
-		arr = append(arr, k.bpid)
-		arr = append(arr, k.api)
-		arr = append(arr, fmt.Sprintf("%s:%d", f.hostname, f.pid))
-		for _, count := range v.counts {
-			arr = append(arr, fmt.Sprintf("%d", count))
+
+		var point string
+		if f.config.OutputFormat == "json" {
+			type M struct {
+				Lts_at  int64  `json:"lts_at"`
+				Time    string `json:"time"`
+				MBpid   string `json:"mbpid"`
+				Api     string `json:"api"`
+				Host    string `json:"host"`
+				CountIn string `json:"count_in"`
+			}
+			clock := time.Now().Unix()
+			m := M{
+				Lts_at:  clock,
+				Time:    t.Truncate(time.Hour).Format("2006-01-02 15:04:05.999999999"),
+				MBpid:   k.bpid,
+				Api:     k.api,
+				Host:    fmt.Sprintf("%s:%d", f.hostname, f.pid),
+				CountIn: fmt.Sprintf("%d", v.counts[MTypeOK]),
+			}
+			jstr, err := json.Marshal(m)
+			if err != nil {
+				f.fr.LogError(err)
+				continue
+			}
+
+			point = fmt.Sprintf("%s|%d|%s\t%s", "BBBEEEE000001111112222222FFFFFFF", clock, "bylog_metrics", jstr)
+		} else {
+			var arr []string
+			arr = append(arr, t.Truncate(time.Hour).Format("2006-01-02 15:04:05.999999999"))
+			arr = append(arr, k.bpid)
+			arr = append(arr, k.api)
+			arr = append(arr, fmt.Sprintf("%s:%d", f.hostname, f.pid))
+			for _, count := range v.counts {
+				arr = append(arr, fmt.Sprintf("%d", count))
+			}
+			point = strings.Join(arr, ",")
 		}
-		point := strings.Join(arr, ",")
+
 		num++
 		f.deliverMetric(point + "\n")
 	}
 	f.counter.m = make(map[Key]Value)
+	if f.config.SendNullMetric == true {
+		new_value := Value{make([]int, MTypeMaxNum)}
+		f.counter.m[Key{"", ""}] = new_value
+	}
 	f.counter.Unlock()
 
 	LogInfo.Println("This hour: num of points in counter:", num)
 }
 
 func (f *BylogFilter) deliverMetric(point string) {
-	const msgType = "BylogMetric"
+	const msgType = "BylogMetrics"
 
 	pack := f.h.PipelinePack(0)
 	if pack == nil {

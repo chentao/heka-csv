@@ -126,6 +126,9 @@ func (po *PgOutput) sendPoints(points []string) error {
 
 	for _, p := range points {
 		fields := strings.Split(p, ",")
+		if len(fields) < 4+int(MTypeMaxNum) {
+			return fmt.Errorf("fields num not fit for pg: %s", p)
+		}
 		_, err = stmt.Exec(
 			fields[0],
 			fields[1],
