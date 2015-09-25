@@ -162,7 +162,7 @@ func (f *BylogFilter) cleanMetricCounter(exiting bool) {
 				Lts_at  int64  `json:"lts_at"`
 				Time    string `json:"time"`
 				MBpid   string `json:"mbpid"`
-				Api     string `json:"api"`
+				MApi    string `json:"mapi"`
 				Host    string `json:"host"`
 				CountIn string `json:"count_in"`
 			}
@@ -171,7 +171,7 @@ func (f *BylogFilter) cleanMetricCounter(exiting bool) {
 				Lts_at:  clock,
 				Time:    t.Truncate(time.Hour).Format("2006-01-02 15:04:05.999999999"),
 				MBpid:   k.bpid,
-				Api:     k.api,
+				MApi:    k.api,
 				Host:    fmt.Sprintf("%s:%d", f.hostname, f.pid),
 				CountIn: fmt.Sprintf("%d", v.counts[MTypeOK]),
 			}
